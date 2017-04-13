@@ -55,7 +55,7 @@ entropy1d <- function( weights ){
   # for each gene calculate entropy
   apply(P,2,function(p){
     -sum(p * log2(p), na.rm = T)
-    # note: na.rm = T because when p=0 0*log2(0) returns NaN
+    # note: na.rm = T because when p=0 0*log2(0) sum returns NaN
   })
 }
 
@@ -100,6 +100,11 @@ scale0to1 <- function(x){
 #' @examples
 #' data( riceEx )
 #' calcSplineMI( riceEx[1:5, ], 7, 3)
+#'
+#' # compare single CPU vs two CPU's
+#' system.time( mi_1 <- calcSplineMI( riceEx, 7, 3) )
+#' system.time( mi_2 <- calcSplineMI( riceEx, 7, 3, cores = 2) )
+#' identical( mi_1, mi_2 )
 calcSplineMI <- function(x, nBins, splineOrder, cores = 1){
   if( cores == 1){
     return( calcSplineMIsingleCore(x, nBins, splineOrder) )
@@ -208,7 +213,8 @@ calcSplineMImultiCore <- function(x, nBins, splineOrder, cores){
 
   # put miChunks together
   nGenes <- nrow(x)
-  mi <- matrix(0,nrow=nGenes,ncol=nGenes)
+  mi <- matrix(0,nrow=nGenes,ncol=nGenes,
+               dimnames = list(rownames(x),rownames(x)))
 
   for( i in 1:length(chunk_i)){
     c_i <- chunk_i[i]

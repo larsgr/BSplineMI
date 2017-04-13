@@ -24,4 +24,9 @@ Calculate mutual information for an expression matrix using B-Spline binning.
 \examples{
 data( riceEx )
 calcSplineMI( riceEx[1:5, ], 7, 3)
+
+# compare single CPU vs two CPU's
+system.time( mi_1 <- calcSplineMI( riceEx, 7, 3) )
+system.time( mi_2 <- calcSplineMI( riceEx, 7, 3, cores = 2) )
+identical( mi_1, mi_2 )
 }
