@@ -1,0 +1,11 @@
+export(calcSplineMI)
+export(calcSplineMItoFile)
+export(calcWeights)
+export(entropy1d)
+export(entropy2d)
+export(hist2d)
+
+importFrom(Rcpp, evalCpp)
+importFrom(stats, setNames)
+importFrom(parallel, mclapply, mcmapply)
+useDynLib(BSplineMI)

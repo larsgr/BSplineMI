@@ -1,0 +1,312 @@
+
+#' Calculate bin weights using B-Spline
+#'
+#' Takes an expression matrix and calculates for each value the weights for each
+#' bin using B-Splines of a given order.
+#'
+#' @param x Gene expression matrix with genes in rows and samples in columns
+#' @param nBins Number of bins
+#' @param splineOrder Spline order
+#'
+#' @return 3-dimensional array of weights with dimensions: nBins x samples x genes
+#' @export
+#'
+#' @examples
+#' x <- matrix(0:100,nrow=1)
+#' w <- calcWeights(x,nBins = 5,splineOrder = 3)
+#' plot(NULL,xlim=c(0,100),ylim=c(0,1),xlab="x",ylab="weight")
+#' for(i in 1:dim(w)[1]){
+#'   lines(x[1, ],w[i, ,1],col=rainbow(dim(w)[1])[i])
+#' }
+calcWeights <-function( x, nBins, splineOrder){
+
+  # scales the expressions for each gene to between [0,1]*(nBins-splineOrder+1)
+  z <- apply(x,1,scale0to1) * (nBins-splineOrder+1)
+  # note z is transposed. i.e. [samples x genes]
+
+  knots <- calcKnots(nBins, splineOrder)
+
+  w <- SplineBlendAll(z, knots, splineOrder, nBins)
+  # add some dimensions
+  # should be [bins x samples x genes]
+  dim(w) <- c(nBins,dim(z))
+  dimnames(w) <- c(list(paste0("bin",1:nBins)),dimnames(z))
+
+  return(w)
+}
+
+
+#' Calculate entropy per gene using
+#'
+#' @param weights 3-dimensional array of weights with dimensions:
+#' nBins x samples x genes. (see \code{\link{calcWeights}})
+#'
+#' @return vector of entropy per gene in bits
+#' @export
+#'
+#' @examples
+#' data( riceEx )
+#' hist( entropy1d( calcWeights( riceEx, 7, 3) ) )
+entropy1d <- function( weights ){
+  # p is mean of weights for all samples per bin and gene
+  P <- apply(weights, c(1,3),mean)
+  # p: array [nBins x genes]
+
+  # for each gene calculate entropy
+  apply(P,2,function(p){
+    -sum(p * log2(p), na.rm = T)
+    # note: na.rm = T because when p=0 0*log2(0) returns NaN
+  })
+}
+
+
+#' Calculate B-Spline knots
+#'
+#' @param nBins Number of bins
+#' @param splineOrder Spline order
+#'
+#' @return vector of B-Spline knots
+calcKnots <- function(nBins, splineOrder){
+  c(rep(0,splineOrder),1:(nBins-splineOrder),rep(nBins-splineOrder+1,splineOrder))
+}
+
+#' Scale a vector to between 0 and 1
+#'
+#' @param x numeric vector
+#'
+#' @return scaled numeric vector
+scale0to1 <- function(x){
+  Xrange <- range(x,na.rm = T)
+  Xmin <- Xrange[1]
+  Xfactor <- (Xrange[2]-Xrange[1])
+  if( Xfactor == 0){
+    # handle genes where all samples have 0 expression
+    return( rep(0.0,length(x)) )
+  } else{
+    return( (x-Xmin)/Xfactor )
+  }
+}
+
+#' Calculate mutual information
+#'
+#' Calculate mutual information for an expression matrix using B-Spline binning.
+#'
+#' @inheritParams calcWeights
+#' @param cores if >1 then run in parallel
+#'
+#' @return matrix of mutual information (bits)
+#' @export
+#'
+#' @examples
+#' data( riceEx )
+#' calcSplineMI( riceEx[1:5, ], 7, 3)
+calcSplineMI <- function(x, nBins, splineOrder, cores = 1){
+  if( cores == 1){
+    return( calcSplineMIsingleCore(x, nBins, splineOrder) )
+  } else {
+    return( calcSplineMImultiCore(x, nBins, splineOrder, cores) )
+  }
+}
+
+# single core version of calcSplineMI
+calcSplineMIsingleCore <- function(x, nBins, splineOrder){
+
+  weights <- calcWeights(x, nBins, splineOrder)
+
+  entropy <- entropy1d(weights)
+
+  nGenes <- nrow(x)
+  mi <- matrix(0,nrow=nGenes,ncol=nGenes,
+               dimnames = list(rownames(x),rownames(x)))
+  for( i in 2:nGenes){
+    for( j in 1:(i-1)){
+      mi[i,j] <- mi[j,i] <- entropy[j] + entropy[i] - entropy2d_C(weights,i-1,j-1)
+    }
+  }
+  return(mi)
+}
+
+
+#' Helper function to bind together 3d arrays by the 3d dimension
+#'
+#' @param arrayList list of 3d arrays to bind
+#'
+#' @return concatenated 3d array
+bind3d <- function(arrayList){
+  X <- do.call(c,arrayList)
+
+  dim(X) <- c(dim(arrayList[[1]])[1:2],rowSums(sapply(arrayList,dim))[3])
+  dim3names <- do.call(c,lapply(setNames(arrayList,NULL),function(x){dimnames(x)[[3]]}))
+  dimnames(X) <- c(dimnames(arrayList[[1]])[1:2],list(dim3names))
+  return(X)
+}
+
+
+
+# multi core version of calcSplineMI
+calcSplineMImultiCore <- function(x, nBins, splineOrder, cores){
+
+  # Divide the data into chunks.
+
+  # To balance the load, the number of chunks is doubled if the number of
+  # cores is even. This is because the total number of jobs is n*(n+1)/2.
+  nChunks <- cores * 1+(cores %% 2)
+
+  chunkIdx <- split(1:nrow(x),cut(1:nrow(x),breaks=nChunks,
+                                  labels = paste0("chunk",1:nChunks)))
+
+  weightChunk <- mclapply(chunkIdx, function(idx){
+    calcWeights(x[idx, ], nBins, splineOrder)
+  },mc.cores = cores)
+
+  entropyChunk <- mclapply(weightChunk, entropy1d ,mc.cores = cores)
+
+  # concatenate the weights
+  weights <- bind3d(weightChunk)
+  rm(weightChunk)
+
+  system.time({
+
+    chunk_i <- 1:nChunks
+    chunk_j <- 1:nChunks
+
+    for( i in 2:nChunks){
+      for( j in 1:(i-1)){
+        chunk_i <- c(chunk_i, i)
+        chunk_j <- c(chunk_j, j)
+      }
+    }
+
+    mcmapply( c_i=chunk_i, c_j=chunk_j, FUN= function(c_i,c_j){
+      if( c_i == c_j ){
+        idx <- chunkIdx[[c_i]]
+        nGenes <- length(idx)
+        entropy <- entropyChunk[[c_i]]
+        miChunk <- matrix(0,nrow=nGenes,ncol=nGenes)
+        for( i in 2:nGenes){
+          for( j in 1:(i-1)){
+            miChunk[i,j] <-
+              miChunk[j,i] <- entropy[j] + entropy[i] -
+                              entropy2d_C(weights,idx[i]-1,idx[j]-1)
+          }
+        }
+      } else {
+        idx_i <- chunkIdx[[c_i]]
+        idx_j <- chunkIdx[[c_j]]
+        miChunk <- matrix(0,nrow=length(idx_i),ncol=length(idx_j))
+        for( i in 1:length(idx_i)){
+          for( j in 1:length(idx_j)){
+            miChunk[i,j] <-  entropyChunk[[c_j]][j] +  entropyChunk[[c_i]][i] -
+                             entropy2d_C(weights,idx_i[i]-1,idx_j[j]-1)
+          }
+        }
+      }
+      return(miChunk)
+    }, mc.cores=cores, SIMPLIFY = F) -> miChunks
+
+  })
+
+  # put miChunks together
+  nGenes <- nrow(x)
+  mi <- matrix(0,nrow=nGenes,ncol=nGenes)
+
+  for( i in 1:length(chunk_i)){
+    c_i <- chunk_i[i]
+    c_j <- chunk_j[i]
+    mi[chunkIdx[[c_i]],chunkIdx[[c_j]]] <- miChunks[[i]]
+    if( c_i != c_j ){
+      mi[chunkIdx[[c_j]],chunkIdx[[c_i]]] <- t(miChunks[[i]])
+    }
+  }
+
+  return(mi)
+}
+
+
+#' Calculates MI matrix and write directly to file
+#'
+#' Calculates specified rows of lower half of MI matrix and write directly to
+#' file. This uses less memory as it doesn't need to hold the entire mi matrix
+#' in memory. By setting fromRow and toRow it is possible to split up the job
+#' to run independantly in parallel.
+#'
+#'
+#' @inheritParams calcWeights
+#' @param filename name of output file
+#' @param fromRow first row of MI matrix to generate
+#' @param toRow last row of MI matrix to generate
+#'
+#' @return Returns nothing. The results are written to file as text with values
+#' space separated and one row per line. Gene IDs are discarded.
+#'
+#' @export
+#'
+#' @examples
+#' tmp <- tempfile()
+#' data(riceEx)
+#' calcSplineMItoFile( riceEx, 7, 3, filename = tmp, fromRow = 4, toRow = 6 )
+#' cat(readLines(tmp),sep="\n")
+#' unlink(tmp)
+calcSplineMItoFile <- function(x, nBins, splineOrder, filename,
+                               fromRow=2, toRow=nrow(x)){
+
+  # check arguments
+  stopifnot( fromRow >= 1 && toRow <= nrow(x) && fromRow <= toRow )
+
+  weights <- calcWeights(x[1:toRow,], nBins, splineOrder)
+
+  entropy <- entropy1d(weights)
+
+  # open output file
+  outCon = file(filename, open = "wt")
+
+  # note: 1st row is always skipped as it would be empty
+  for( i in max(fromRow,2):toRow){
+    sapply(1:(i-1), function(j){
+      entropy[j] + entropy[i] - entropy2d_C(weights,i-1,j-1)
+    }) -> miRow
+
+    cat( paste(sprintf("%f",pmax(0,miRow)),collapse=" "), sep="\n", file = outCon )
+  }
+  close(outCon)
+}
+
+#' Calculate joint probability density matrix from weights
+#'
+#' @param weights 3-dimensional array of weights with dimensions:
+#' nBins x samples x genes as generated by \code{\link{calcWeights}}
+#' @param i1 index to 1st gene
+#' @param i2 index to 2nd gene
+#'
+#' @return Returns joint probability density matrix [bins x bins]
+#' @export
+#'
+#' @examples
+#' m <- hist2d( calcWeights( riceEx, 7, 3), 1, 2 )
+#' image(m)
+hist2d <- function(weights, i1, i2){
+  # check arguments
+  stopifnot( length(dim(weights))==3 && length(weights) == prod(dim(weights)) )
+  stopifnot( as.integer(i1) > 0 && as.integer(i1) <= dim(weights)[3] )
+  stopifnot( as.integer(i2) > 0 && as.integer(i2) <= dim(weights)[3] )
+
+  hist2d_C(weights, i1-1, i2-1)
+}
+
+#' Calculate joint entropy of two genes
+#'
+#' @inheritParams hist2d
+#'
+#' @return joint entropy in bits
+#' @export
+#'
+#' @examples
+#' entropy2d( calcWeights( riceEx, 7, 3), 1, 2 )
+entropy2d <- function(weights, i1, i2){
+  # check arguments
+  stopifnot( length(dim(weights))==3 && length(weights) == prod(dim(weights)) )
+  stopifnot( as.integer(i1) > 0 && as.integer(i1) <= dim(weights)[3] )
+  stopifnot( as.integer(i2) > 0 && as.integer(i2) <= dim(weights)[3] )
+
+  entropy2d_C(weights, i1-1, i2-1)
+}
