@@ -4,7 +4,7 @@
 \alias{calcSplineMI}
 \title{Calculate mutual information}
 \usage{
-calcSplineMI(x, nBins, splineOrder, cores = 1)
+calcSplineMI(x, nBins, splineOrder, threads = 1)
 }
 \arguments{
 \item{x}{Gene expression matrix with genes in rows and samples in columns}
@@ -13,7 +13,7 @@ calcSplineMI(x, nBins, splineOrder, cores = 1)
 
 \item{splineOrder}{Spline order}
 
-\item{cores}{if >1 then run in parallel}
+\item{threads}{if >1 then run in parallel}
 }
 \value{
 matrix of mutual information (bits)
@@ -27,6 +27,6 @@ calcSplineMI( riceEx[1:5, ], 7, 3)
 
 # compare single CPU vs two CPU's
 system.time( mi_1 <- calcSplineMI( riceEx, 7, 3) )
-system.time( mi_2 <- calcSplineMI( riceEx, 7, 3, cores = 2) )
+system.time( mi_2 <- calcSplineMI( riceEx, 7, 3, threads = 2) )
 identical( mi_1, mi_2 )
 }

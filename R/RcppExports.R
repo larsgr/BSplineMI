@@ -13,3 +13,11 @@ entropy2d_C <- function(weights, i1, i2) {
     .Call('BSplineMI_entropy2d_C', PACKAGE = 'BSplineMI', weights, i1, i2)
 }
 
+entropyHist2d_C <- function(weights, i1, i2, nBins, nSamples) {
+    .Call('BSplineMI_entropyHist2d_C', PACKAGE = 'BSplineMI', weights, i1, i2, nBins, nSamples)
+}
+
+calcMIfromWeights <- function(entropy, weights, threads) {
+    .Call('BSplineMI_calcMIfromWeights', PACKAGE = 'BSplineMI', entropy, weights, threads)
+}
+

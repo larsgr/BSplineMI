@@ -1,4 +1,6 @@
 #include <Rcpp.h>
+#include <omp.h>
+// [[Rcpp::plugins(openmp)]]
 using namespace Rcpp;
 
 
@@ -55,7 +57,9 @@ NumericVector SplineBlendAll( NumericVector z, NumericVector knots, int splineOr
 
 
 // [[Rcpp::export]]
-NumericVector hist2d_C(NumericVector weights, int i1, int i2){
+NumericVector hist2d_C(const NumericVector weights,
+                       const int i1,
+                       const int i2){
   // weights is a 3d array [bins x samples x genes ]
   NumericVector dim = weights.attr("dim");
   int nBins = dim[0];
@@ -83,7 +87,9 @@ NumericVector hist2d_C(NumericVector weights, int i1, int i2){
 
 
 // [[Rcpp::export]]
-double entropy2d_C(NumericVector weights, int i1, int i2){
+double entropy2d_C(const NumericVector weights,
+                   const int i1,
+                   const int i2){
   NumericVector pMat = hist2d_C(weights, i1, i2);
 
   // calculate entropy
@@ -101,3 +107,76 @@ double entropy2d_C(NumericVector weights, int i1, int i2){
   return(H);
 }
 
+// [[Rcpp::export]]
+double entropyHist2d_C(const NumericVector& weights,
+                       const int i1,
+                       const int i2,
+                       const int nBins,
+                       const int nSamples){
+
+  // allocate joint probability matrix
+  int psize = nBins*nBins;
+  double *pMat = (double *)calloc(psize, sizeof(double));
+
+  // weights is a 3d array [bins x samples x genes ]
+  int w1 = nBins*nSamples*i1; // add nBins*nSamples*i1 to get weights for gene i1
+  int w2 = nBins*nSamples*i2; // add nBins*nSamples*i2 to get weights for gene i2
+
+  int i,j,k;
+
+  for(i = 0; i < nSamples; i++){
+    for(j = 0; j < nBins; j++){
+      for(k = 0; k < nBins; k++){
+        pMat[j + nBins*k] += weights[j + i*nBins + w1] * weights[k + i*nBins + w2];
+      }
+    }
+  }
+
+  // calculate entropy
+  // -sum(p * log2(p), na.rm = T)
+  double H = 0.0; //returned entropy
+
+  for( i = 0; i < psize; i++){
+    // divide by number of samples to get probability
+    double p = pMat[i]/nSamples;
+    // need to skip the 0's as it would generate NaN
+    if( p > 0 ){
+      H -= p*log2(p);
+    }
+  }
+
+  free(pMat);
+
+  return(H);
+}
+
+// [[Rcpp::export]]
+NumericMatrix calcMIfromWeights(const NumericVector entropy,
+                                const NumericVector weights,
+                                const int threads){
+
+  // get number of genes
+  int nGenes = entropy.size();
+
+  // get number of bins and samples
+  NumericVector dim = weights.attr("dim");
+  int nBins = dim[0];
+  int nSamples = dim[1];
+
+  // allocate MI matrix
+  NumericMatrix mi = NumericMatrix(nGenes, nGenes);
+
+  omp_set_num_threads(threads);
+  #pragma omp parallel for shared(mi) schedule(dynamic)
+  for( int i = 1; i < nGenes; i++){
+    for( int j = 0; j < i; j++){
+      // double miSingle = testdummy(weights, nBins, nSamples);
+      double miSingle = entropy[j] + entropy[i] -
+                        entropyHist2d_C(weights,i,j,nBins,nSamples);
+      mi[i + j*nGenes] = miSingle;
+      mi[j + i*nGenes] = miSingle;
+    }
+  }
+
+  return(mi);
+}

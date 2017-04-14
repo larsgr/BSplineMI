@@ -20,28 +20,56 @@ BEGIN_RCPP
 END_RCPP
 }
 // hist2d_C
-NumericVector hist2d_C(NumericVector weights, int i1, int i2);
+NumericVector hist2d_C(const NumericVector weights, const int i1, const int i2);
 RcppExport SEXP BSplineMI_hist2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
-    Rcpp::traits::input_parameter< int >::type i1(i1SEXP);
-    Rcpp::traits::input_parameter< int >::type i2(i2SEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const int >::type i1(i1SEXP);
+    Rcpp::traits::input_parameter< const int >::type i2(i2SEXP);
     rcpp_result_gen = Rcpp::wrap(hist2d_C(weights, i1, i2));
     return rcpp_result_gen;
 END_RCPP
 }
 // entropy2d_C
-double entropy2d_C(NumericVector weights, int i1, int i2);
+double entropy2d_C(const NumericVector weights, const int i1, const int i2);
 RcppExport SEXP BSplineMI_entropy2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
-    Rcpp::traits::input_parameter< int >::type i1(i1SEXP);
-    Rcpp::traits::input_parameter< int >::type i2(i2SEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const int >::type i1(i1SEXP);
+    Rcpp::traits::input_parameter< const int >::type i2(i2SEXP);
     rcpp_result_gen = Rcpp::wrap(entropy2d_C(weights, i1, i2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// entropyHist2d_C
+double entropyHist2d_C(const NumericVector& weights, const int i1, const int i2, const int nBins, const int nSamples);
+RcppExport SEXP BSplineMI_entropyHist2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP, SEXP nBinsSEXP, SEXP nSamplesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericVector& >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const int >::type i1(i1SEXP);
+    Rcpp::traits::input_parameter< const int >::type i2(i2SEXP);
+    Rcpp::traits::input_parameter< const int >::type nBins(nBinsSEXP);
+    Rcpp::traits::input_parameter< const int >::type nSamples(nSamplesSEXP);
+    rcpp_result_gen = Rcpp::wrap(entropyHist2d_C(weights, i1, i2, nBins, nSamples));
+    return rcpp_result_gen;
+END_RCPP
+}
+// calcMIfromWeights
+NumericMatrix calcMIfromWeights(const NumericVector entropy, const NumericVector weights, const int threads);
+RcppExport SEXP BSplineMI_calcMIfromWeights(SEXP entropySEXP, SEXP weightsSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericVector >::type entropy(entropySEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< const int >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(calcMIfromWeights(entropy, weights, threads));
     return rcpp_result_gen;
 END_RCPP
 }

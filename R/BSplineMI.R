@@ -92,7 +92,7 @@ scale0to1 <- function(x){
 #' Calculate mutual information for an expression matrix using B-Spline binning.
 #'
 #' @inheritParams calcWeights
-#' @param cores if >1 then run in parallel
+#' @param threads if >1 then run in parallel
 #'
 #' @return matrix of mutual information (bits)
 #' @export
@@ -103,128 +103,13 @@ scale0to1 <- function(x){
 #'
 #' # compare single CPU vs two CPU's
 #' system.time( mi_1 <- calcSplineMI( riceEx, 7, 3) )
-#' system.time( mi_2 <- calcSplineMI( riceEx, 7, 3, cores = 2) )
+#' system.time( mi_2 <- calcSplineMI( riceEx, 7, 3, threads = 2) )
 #' identical( mi_1, mi_2 )
-calcSplineMI <- function(x, nBins, splineOrder, cores = 1){
-  if( cores == 1){
-    return( calcSplineMIsingleCore(x, nBins, splineOrder) )
-  } else {
-    return( calcSplineMImultiCore(x, nBins, splineOrder, cores) )
-  }
-}
-
-# single core version of calcSplineMI
-calcSplineMIsingleCore <- function(x, nBins, splineOrder){
-
-  weights <- calcWeights(x, nBins, splineOrder)
-
+calcSplineMI <- function(x, nBins, splineOrder, threads = 1){
+  weights <- calcWeights(x,nBins,splineOrder)
   entropy <- entropy1d(weights)
-
-  nGenes <- nrow(x)
-  mi <- matrix(0,nrow=nGenes,ncol=nGenes,
-               dimnames = list(rownames(x),rownames(x)))
-  for( i in 2:nGenes){
-    for( j in 1:(i-1)){
-      mi[i,j] <- mi[j,i] <- entropy[j] + entropy[i] - entropy2d_C(weights,i-1,j-1)
-    }
-  }
-  return(mi)
-}
-
-
-#' Helper function to bind together 3d arrays by the 3d dimension
-#'
-#' @param arrayList list of 3d arrays to bind
-#'
-#' @return concatenated 3d array
-bind3d <- function(arrayList){
-  X <- do.call(c,arrayList)
-
-  dim(X) <- c(dim(arrayList[[1]])[1:2],rowSums(sapply(arrayList,dim))[3])
-  dim3names <- do.call(c,lapply(setNames(arrayList,NULL),function(x){dimnames(x)[[3]]}))
-  dimnames(X) <- c(dimnames(arrayList[[1]])[1:2],list(dim3names))
-  return(X)
-}
-
-
-
-# multi core version of calcSplineMI
-calcSplineMImultiCore <- function(x, nBins, splineOrder, cores){
-
-  # Divide the data into chunks.
-
-  # To balance the load, the number of chunks is doubled if the number of
-  # cores is even. This is because the total number of jobs is n*(n+1)/2.
-  nChunks <- cores * 1+(cores %% 2)
-
-  chunkIdx <- split(1:nrow(x),cut(1:nrow(x),breaks=nChunks,
-                                  labels = paste0("chunk",1:nChunks)))
-
-  weightChunk <- mclapply(chunkIdx, function(idx){
-    calcWeights(x[idx, ], nBins, splineOrder)
-  },mc.cores = cores)
-
-  entropyChunk <- mclapply(weightChunk, entropy1d ,mc.cores = cores)
-
-  # concatenate the weights
-  weights <- bind3d(weightChunk)
-  rm(weightChunk)
-
-  system.time({
-
-    chunk_i <- 1:nChunks
-    chunk_j <- 1:nChunks
-
-    for( i in 2:nChunks){
-      for( j in 1:(i-1)){
-        chunk_i <- c(chunk_i, i)
-        chunk_j <- c(chunk_j, j)
-      }
-    }
-
-    mcmapply( c_i=chunk_i, c_j=chunk_j, FUN= function(c_i,c_j){
-      if( c_i == c_j ){
-        idx <- chunkIdx[[c_i]]
-        nGenes <- length(idx)
-        entropy <- entropyChunk[[c_i]]
-        miChunk <- matrix(0,nrow=nGenes,ncol=nGenes)
-        for( i in 2:nGenes){
-          for( j in 1:(i-1)){
-            miChunk[i,j] <-
-              miChunk[j,i] <- entropy[j] + entropy[i] -
-                              entropy2d_C(weights,idx[i]-1,idx[j]-1)
-          }
-        }
-      } else {
-        idx_i <- chunkIdx[[c_i]]
-        idx_j <- chunkIdx[[c_j]]
-        miChunk <- matrix(0,nrow=length(idx_i),ncol=length(idx_j))
-        for( i in 1:length(idx_i)){
-          for( j in 1:length(idx_j)){
-            miChunk[i,j] <-  entropyChunk[[c_j]][j] +  entropyChunk[[c_i]][i] -
-                             entropy2d_C(weights,idx_i[i]-1,idx_j[j]-1)
-          }
-        }
-      }
-      return(miChunk)
-    }, mc.cores=cores, SIMPLIFY = F) -> miChunks
-
-  })
-
-  # put miChunks together
-  nGenes <- nrow(x)
-  mi <- matrix(0,nrow=nGenes,ncol=nGenes,
-               dimnames = list(rownames(x),rownames(x)))
-
-  for( i in 1:length(chunk_i)){
-    c_i <- chunk_i[i]
-    c_j <- chunk_j[i]
-    mi[chunkIdx[[c_i]],chunkIdx[[c_j]]] <- miChunks[[i]]
-    if( c_i != c_j ){
-      mi[chunkIdx[[c_j]],chunkIdx[[c_i]]] <- t(miChunks[[i]])
-    }
-  }
-
+  mi <- calcMIfromWeights(entropy, weights, threads)
+  dimnames(mi) <- list(rownames(x),rownames(x))
   return(mi)
 }
 
