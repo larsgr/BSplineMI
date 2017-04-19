@@ -173,6 +173,12 @@ NumericMatrix calcMIfromWeights(const NumericVector entropy,
       // double miSingle = testdummy(weights, nBins, nSamples);
       double miSingle = entropy[j] + entropy[i] -
                         entropyHist2d_C(weights,i,j,nBins,nSamples);
+
+      // In case the expression for one gene has no entropy the mi should be 0,
+      // but precision error will produce not quite 0. Fix:
+      if( miSingle < 0.000001 )
+        miSingle = 0;
+
       mi[i + j*nGenes] = miSingle;
       mi[j + i*nGenes] = miSingle;
     }
