@@ -2,7 +2,7 @@
 % Please edit documentation in R/BSplineMI.R
 \name{entropy1d}
 \alias{entropy1d}
-\title{Calculate entropy per gene using}
+\title{Calculate entropy per gene}
 \usage{
 entropy1d(weights)
 }
@@ -14,7 +14,7 @@ nBins x samples x genes. (see \code{\link{calcWeights}})}
 vector of entropy per gene in bits
 }
 \description{
-Calculate entropy per gene using
+Calculate entropy per gene
 }
 \examples{
 data( riceEx )

@@ -36,7 +36,7 @@ calcWeights <-function( x, nBins, splineOrder){
 }
 
 
-#' Calculate entropy per gene using
+#' Calculate entropy per gene
 #'
 #' @param weights 3-dimensional array of weights with dimensions:
 #' nBins x samples x genes. (see \code{\link{calcWeights}})
@@ -60,21 +60,21 @@ entropy1d <- function( weights ){
 }
 
 
-#' Calculate B-Spline knots
-#'
-#' @param nBins Number of bins
-#' @param splineOrder Spline order
-#'
-#' @return vector of B-Spline knots
+# Calculate B-Spline knots
+#
+# @param nBins Number of bins
+# @param splineOrder Spline order
+#
+# @return vector of B-Spline knots
 calcKnots <- function(nBins, splineOrder){
   c(rep(0,splineOrder),1:(nBins-splineOrder),rep(nBins-splineOrder+1,splineOrder))
 }
 
-#' Scale a vector to between 0 and 1
-#'
-#' @param x numeric vector
-#'
-#' @return scaled numeric vector
+# Scale a vector to between 0 and 1
+#
+# @param x numeric vector
+#
+# @return scaled numeric vector
 scale0to1 <- function(x){
   Xrange <- range(x,na.rm = T)
   Xmin <- Xrange[1]

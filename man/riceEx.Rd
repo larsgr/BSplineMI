@@ -3,7 +3,7 @@
 \docType{data}
 \name{riceEx}
 \alias{riceEx}
-\title{Gene expression data rice}
+\title{Example gene expression data from rice}
 \format{An object of class \code{matrix} with 100 rows and 123 columns.}
 \usage{
 riceEx
