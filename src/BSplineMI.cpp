@@ -1,5 +1,9 @@
 #include <Rcpp.h>
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
+
 // [[Rcpp::plugins(openmp)]]
 using namespace Rcpp;
 
@@ -166,7 +170,11 @@ NumericMatrix calcMIfromWeights(const NumericVector entropy,
   // allocate MI matrix
   NumericMatrix mi = NumericMatrix(nGenes, nGenes);
 
-  omp_set_num_threads(threads);
+#ifdef _OPENMP
+  if ( threads > 0 )
+    omp_set_num_threads( threads );
+#endif
+
   #pragma omp parallel for shared(mi) schedule(dynamic)
   for( int i = 1; i < nGenes; i++){
     for( int j = 0; j < i; j++){
