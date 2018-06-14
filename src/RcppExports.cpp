@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // SplineBlendAll
 NumericVector SplineBlendAll(NumericVector z, NumericVector knots, int splineOrder, int nBins);
-RcppExport SEXP BSplineMI_SplineBlendAll(SEXP zSEXP, SEXP knotsSEXP, SEXP splineOrderSEXP, SEXP nBinsSEXP) {
+RcppExport SEXP _BSplineMI_SplineBlendAll(SEXP zSEXP, SEXP knotsSEXP, SEXP splineOrderSEXP, SEXP nBinsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -21,7 +21,7 @@ END_RCPP
 }
 // hist2d_C
 NumericVector hist2d_C(const NumericVector weights, const int i1, const int i2);
-RcppExport SEXP BSplineMI_hist2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP) {
+RcppExport SEXP _BSplineMI_hist2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -34,7 +34,7 @@ END_RCPP
 }
 // entropy2d_C
 double entropy2d_C(const NumericVector weights, const int i1, const int i2);
-RcppExport SEXP BSplineMI_entropy2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP) {
+RcppExport SEXP _BSplineMI_entropy2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -47,7 +47,7 @@ END_RCPP
 }
 // entropyHist2d_C
 double entropyHist2d_C(const NumericVector& weights, const int i1, const int i2, const int nBins, const int nSamples);
-RcppExport SEXP BSplineMI_entropyHist2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP, SEXP nBinsSEXP, SEXP nSamplesSEXP) {
+RcppExport SEXP _BSplineMI_entropyHist2d_C(SEXP weightsSEXP, SEXP i1SEXP, SEXP i2SEXP, SEXP nBinsSEXP, SEXP nSamplesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -62,7 +62,7 @@ END_RCPP
 }
 // calcMIfromWeights
 NumericMatrix calcMIfromWeights(const NumericVector entropy, const NumericVector weights, const int threads);
-RcppExport SEXP BSplineMI_calcMIfromWeights(SEXP entropySEXP, SEXP weightsSEXP, SEXP threadsSEXP) {
+RcppExport SEXP _BSplineMI_calcMIfromWeights(SEXP entropySEXP, SEXP weightsSEXP, SEXP threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -72,4 +72,18 @@ BEGIN_RCPP
     rcpp_result_gen = Rcpp::wrap(calcMIfromWeights(entropy, weights, threads));
     return rcpp_result_gen;
 END_RCPP
+}
+
+static const R_CallMethodDef CallEntries[] = {
+    {"_BSplineMI_SplineBlendAll", (DL_FUNC) &_BSplineMI_SplineBlendAll, 4},
+    {"_BSplineMI_hist2d_C", (DL_FUNC) &_BSplineMI_hist2d_C, 3},
+    {"_BSplineMI_entropy2d_C", (DL_FUNC) &_BSplineMI_entropy2d_C, 3},
+    {"_BSplineMI_entropyHist2d_C", (DL_FUNC) &_BSplineMI_entropyHist2d_C, 5},
+    {"_BSplineMI_calcMIfromWeights", (DL_FUNC) &_BSplineMI_calcMIfromWeights, 3},
+    {NULL, NULL, 0}
+};
+
+RcppExport void R_init_BSplineMI(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
 }
