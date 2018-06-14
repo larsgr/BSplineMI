@@ -171,8 +171,11 @@ NumericMatrix calcMIfromWeights(const NumericVector entropy,
   NumericMatrix mi = NumericMatrix(nGenes, nGenes);
 
 #ifdef _OPENMP
-  if ( threads > 0 )
+  if ( threads > 1 )
     omp_set_num_threads( threads );
+#else
+  if( threads > 1 )
+    Rf_warning("Parallel execution with openMP not supported. Running in single thread. Install openMP and recompile package for parallel execution.");
 #endif
 
   #pragma omp parallel for shared(mi) schedule(dynamic)

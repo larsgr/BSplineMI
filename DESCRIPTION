@@ -1,7 +1,7 @@
 Package: BSplineMI
 Type: Package
 Title: Mutual information using B-Spline smoothed bins
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: person("Lars", "Grønvold", email = "lars.gronvold@gmail.com", 
   role = c("aut", "cre"))
 URL: https://github.com/larsgr/BSplineMI
