@@ -171,7 +171,9 @@ NumericMatrix calcMIfromWeights(const NumericVector entropy,
   NumericMatrix mi = NumericMatrix(nGenes, nGenes);
 
 #ifdef _OPENMP
-  if ( threads > 1 )
+  // Set number of threads to use.
+  // Note that if not setting it (if threads=0) all cores will be used.
+  if ( threads > 0 )
     omp_set_num_threads( threads );
 #else
   if( threads > 1 )
